@@ -1,22 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import TodoItem from './TodoItem';
+import { useAuth } from '../lib/AuthContext';
 
 interface Todo {
   id: string;
   title: string;
   completed: boolean;
+  user_id: string;
 }
 
 const TodoList: React.FC = () => {
+  const { user } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Todoリストを取得
   useEffect(() => {
-    fetchTodos();
-  }, []);
+    if (user) {
+      fetchTodos();
+    }
+  }, [user]);
 
   const fetchTodos = async () => {
     try {
@@ -24,6 +29,7 @@ const TodoList: React.FC = () => {
       const { data, error } = await supabase
         .from('todos')
         .select('*')
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -44,12 +50,15 @@ const TodoList: React.FC = () => {
   // 新しいTodoを追加
   const addTodo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTodoTitle.trim()) return;
+    if (!newTodoTitle.trim() || !user) return;
 
     try {
       const { data, error } = await supabase
         .from('todos')
-        .insert([{ title: newTodoTitle }])
+        .insert([{ 
+          title: newTodoTitle,
+          user_id: user.id 
+        }])
         .select();
 
       if (error) {
@@ -75,7 +84,8 @@ const TodoList: React.FC = () => {
       const { error } = await supabase
         .from('todos')
         .update({ completed: !todoToUpdate.completed })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user?.id);
 
       if (error) {
         throw error;
@@ -96,7 +106,8 @@ const TodoList: React.FC = () => {
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user?.id);
 
       if (error) {
         throw error;
